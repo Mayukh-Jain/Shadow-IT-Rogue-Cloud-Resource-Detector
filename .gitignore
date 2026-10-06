@@ -12,8 +12,3 @@ env/
 
 # DB
 local.db
-
-# slack
-slack/
-slack-bot/
-tests/
