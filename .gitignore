@@ -1,0 +1,19 @@
+# Environment Variables
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# DB
+local.db
+
+# slack
+slack/
+slack-bot/
+tests/

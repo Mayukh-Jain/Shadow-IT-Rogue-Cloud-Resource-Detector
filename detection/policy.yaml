@@ -1,0 +1,10 @@
+# Governance Policy for Cloud Resources
+required_tags:
+  - owner
+  - team
+  - environment
+  - project
+
+thresholds:
+  max_idle_days: 14
+  allow_public_access: false

@@ -1,0 +1,20 @@
+============================================================
+SHADOW IT RISK SCORING MODEL - EVALUATION REPORT
+============================================================
+Model: RandomForestRegressor(n_estimators=200, max_depth=8, random_state=42)
+Dataset: D:\Projects\capstone\ml-scoring\data\synthetic_dataset.csv
+Total Samples: 1,501
+Training Samples: 1,200
+Test Samples: 301
+
+--- Evaluation Metrics ---
+Mean Absolute Error (MAE): 4.238
+R-squared (R2) Score: 0.948
+
+--- Feature Importances ---
+- public_access: 0.505
+- missing_tag_count: 0.333
+- idle_days: 0.126
+- est_monthly_cost: 0.028
+- age_days: 0.008
+============================================================
