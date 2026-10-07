@@ -18,18 +18,21 @@ def main():
     print(f"🚀 STARTING CAPSTONE PIPELINE ({'MOCK' if use_mock else 'LIVE AWS'} MODE)")
     print("=" * 60)
     
-    # if use_mock:
-    #     # Run Mock Injector
-    #     #run_script(ROOT_DIR / "shared" / "inject_mock_data.py", cwd=ROOT_DIR / "shared")
-    # else:
-    #     # Run actual AWS Scanner
-    #     run_script(ROOT_DIR / "detection" / "scanner.py", cwd=ROOT_DIR / "detection")
+    if use_mock:
+        # Run Mock Injector
+        run_script(ROOT_DIR / "shared" / "inject_mock_data.py", cwd=ROOT_DIR / "shared")
+    else:
+        # Run actual AWS Scanner
+        run_script(ROOT_DIR / "detection" / "scanner.py", cwd=ROOT_DIR / "detection")
         
     # Run ML Scorer
     run_script(ROOT_DIR / "ml-scoring" / "score_resources.py", cwd=ROOT_DIR / "ml-scoring")
     
     # Run LLM Explainer
     run_script(ROOT_DIR / "llm-explainability" / "explainer.py", cwd=ROOT_DIR / "llm-explainability")
+    
+    # Run Slack Bot Alert Dispatcher
+    run_script(ROOT_DIR / "slack-bot" / "app.py", cwd=ROOT_DIR / "slack-bot")
     
     print("\n" + "=" * 60)
     print("✅ PIPELINE COMPLETED SUCCESSFULLY!")

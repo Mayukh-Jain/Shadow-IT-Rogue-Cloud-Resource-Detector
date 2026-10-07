@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shadow.Guard — Cloud Risk Scoring & Rogue Asset Detector</title>
+  <meta name="description" content="Enterprise Cloud Governance, Live Telemetry Feed, Automated Incident Runbooks, SRE Workflow Sync, and In-Memory Log Analysis.">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Chart.js & Lucide Icons CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Bespoke Stylesheet -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- ========================================================================
+       App Header
+       ======================================================================== -->
+  <header class="app-header">
+    <div class="brand-wrapper">
+      <div class="brand-logo-icon">
+        <i data-lucide="shield-alert" style="width: 24px; height: 24px;"></i>
+      </div>
+      <div class="brand-text">
+        <h1>SHADOW<span class="gradient-text">.GUARD</span></h1>
+        <div class="brand-tagline">Cloud Risk Scoring &amp; Rogue Asset Detector</div>
+      </div>
+    </div>
+
+    <div class="header-status-group">
+      <div class="status-pill" id="sse-connection-pill">
+        <div class="pulsing-dot" id="sse-pulse-dot"></div>
+        <span id="sse-status-text">LIVE FEED CONNECTED</span>
+      </div>
+
+      <!-- Multi-Region Scope Selector -->
+      <div class="region-selector-wrap">
+        <i data-lucide="globe" style="width: 14px; height: 14px; color: var(--cyan-primary);"></i>
+        <select id="select-global-region" class="region-select">
+          <option value="all">All Regions (Global Sweep)</option>
+          <option value="us-east-1">us-east-1 (N. Virginia)</option>
+          <option value="us-west-2">us-west-2 (Oregon)</option>
+          <option value="eu-west-1">eu-west-1 (Ireland)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-icon-only" id="btn-manual-refresh" title="Refresh Live Data">
+        <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       Main Content Container
+       ======================================================================== -->
+  <main class="app-container">
+
+    <!-- KPI Summary Section -->
+    <section class="kpi-grid">
+      <div class="kpi-card accent-cyan">
+        <div class="kpi-top">
+          <span class="kpi-title">Monitored Assets</span>
+          <div class="kpi-icon-wrap"><i data-lucide="cloud" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-total-resources">0</div>
+        <div class="kpi-subtext">
+          <span class="badge-tag" style="background: rgba(0, 240, 255, 0.1); color: var(--cyan-primary);" id="kpi-compliance-rate">100% Compliant</span>
+          <span id="kpi-account-id">Account: 1234****9012</span>
+        </div>
+      </div>
+
+      <div class="kpi-card accent-rose">
+        <div class="kpi-top">
+          <span class="kpi-title">Flagged Rogue Assets</span>
+          <div class="kpi-icon-wrap"><i data-lucide="alert-octagon" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-flagged-resources">0</div>
+        <div class="kpi-subtext">
+          <span class="badge-tag" style="background: var(--risk-high-bg); color: var(--risk-high);">Policy Breached</span>
+          <span>Missing tags / Public IP</span>
+        </div>
+      </div>
+
+      <div class="kpi-card accent-amber">
+        <div class="kpi-top">
+          <span class="kpi-title">High Risk Vulnerabilities</span>
+          <div class="kpi-icon-wrap"><i data-lucide="flame" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-high-risk">0</div>
+        <div class="kpi-subtext">
+          <span class="badge-tag" style="background: var(--risk-med-bg); color: var(--risk-med);">Score &ge; 67.0</span>
+          <span>Critical SRE Attention</span>
+        </div>
+      </div>
+
+      <div class="kpi-card accent-purple">
+        <div class="kpi-top">
+          <span class="kpi-title">Monthly Wasted Spend</span>
+          <div class="kpi-icon-wrap"><i data-lucide="dollar-sign" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-wasted-cost">$0.00</div>
+        <div class="kpi-subtext">
+          <span class="badge-tag" style="background: var(--purple-glow); color: var(--purple-accent);">Idle Inactivity</span>
+          <span>CloudWatch metrics</span>
+        </div>
+      </div>
+
+      <div class="kpi-card accent-emerald">
+        <div class="kpi-top">
+          <span class="kpi-title">Pending SRE Reviews</span>
+          <div class="kpi-icon-wrap"><i data-lucide="clock" style="width: 18px; height: 18px;"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-pending-approvals">0</div>
+        <div class="kpi-subtext">
+          <span class="badge-tag" style="background: var(--risk-low-bg); color: var(--risk-low);" id="kpi-pending-badge">Queue Active</span>
+          <span>Slack Human-in-the-Loop</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab Navigation Bar (Strict Final Order) -->
+    <nav class="tabs-navigation" role="tablist">
+      <button class="tab-btn active" data-tab="livefeed" role="tab" aria-selected="true" id="tab-btn-livefeed">
+        <i data-lucide="radio" style="width: 18px; height: 18px;"></i>
+        <span>Live Feed</span>
+      </button>
+      <button class="tab-btn" data-tab="incidents" role="tab" aria-selected="false" id="tab-btn-incidents">
+        <i data-lucide="alert-triangle" style="width: 18px; height: 18px;"></i>
+        <span>Incidents</span>
+      </button>
+      <button class="tab-btn" data-tab="approvals" role="tab" aria-selected="false" id="tab-btn-approvals">
+        <i data-lucide="check-square" style="width: 18px; height: 18px;"></i>
+        <span>SRE Approvals</span>
+      </button>
+      <button class="tab-btn" data-tab="loganalyzer" role="tab" aria-selected="false" id="tab-btn-loganalyzer">
+        <i data-lucide="file-search" style="width: 18px; height: 18px;"></i>
+        <span>Log Analyzer</span>
+      </button>
+    </nav>
+
+    <!-- ======================================================================
+         TAB 1: Live Feed (Task 2 & Addendum A1)
+         ====================================================================== -->
+    <section class="tab-content active" id="tab-livefeed" role="tabpanel" aria-labelledby="tab-btn-livefeed">
+      <!-- Interactive Visualizations Grid -->
+      <div class="feed-charts-grid">
+        <!-- Streaming Velocity Chart -->
+        <div class="card-panel">
+          <div class="card-header-row">
+            <div class="card-title-group">
+              <h2><i data-lucide="activity" style="width: 20px; height: 20px; color: var(--cyan-primary);"></i> Real-Time Event Velocity</h2>
+              <div class="card-subtitle">Events per minute &bull; Rolling 15-minute telemetry window</div>
+            </div>
+          </div>
+          <div style="position: relative; height: 240px; width: 100%;">
+            <canvas id="chart-events-velocity"></canvas>
+          </div>
+        </div>
+
+        <!-- Risk-Tier Donut -->
+        <div class="card-panel">
+          <div class="card-header-row">
+            <div class="card-title-group">
+              <h2><i data-lucide="pie-chart" style="width: 20px; height: 20px; color: var(--purple-accent);"></i> Risk Tier Distribution</h2>
+              <div class="card-subtitle">Click slice to filter live feed (HIGH, MEDIUM, LOW, SAFE)</div>
+            </div>
+          </div>
+          <div style="position: relative; height: 240px; width: 100%;">
+            <canvas id="chart-risk-donut"></canvas>
+          </div>
+        </div>
+
+        <!-- Flagged Resources by Service -->
+        <div class="card-panel">
+          <div class="card-header-row">
+            <div class="card-title-group">
+              <h2><i data-lucide="server" style="width: 20px; height: 20px; color: var(--risk-med);"></i> Flagged Assets by Service</h2>
+              <div class="card-subtitle">Click bar to filter live feed (EC2, S3, RDS, Lambda)</div>
+            </div>
+          </div>
+          <div style="position: relative; height: 240px; width: 100%;">
+            <canvas id="chart-service-bars"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Feed Stream Panel -->
+      <div class="card-panel" style="margin-top: 1.5rem;">
+        <div class="card-header-row">
+          <div class="card-title-group">
+            <h2><i data-lucide="rss" style="width: 20px; height: 20px; color: var(--cyan-primary);"></i> Live Telemetry Event Stream</h2>
+            <div class="card-subtitle">Continuous feed from multi-region scanner, ML scoring, GitHub runbooks, and SRE decisions</div>
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <button class="btn btn-secondary" id="btn-toggle-stream-pause">
+              <i data-lucide="pause" id="icon-stream-pause" style="width: 15px; height: 15px;"></i>
+              <span id="text-stream-pause">Pause Feed</span>
+            </button>
+            <button class="btn btn-secondary" id="btn-clear-feed">
+              <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
+              <span>Clear Feed</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Feed Filter Controls -->
+        <div class="table-controls-bar">
+          <div class="search-input-wrap">
+            <i data-lucide="search" class="search-icon" style="width: 16px; height: 16px;"></i>
+            <input type="text" id="input-feed-search" placeholder="Search events by resource ID, service, or keyword...">
+          </div>
+
+          <div class="filter-group">
+            <select class="custom-select" id="select-feed-service-filter">
+              <option value="">All Services</option>
+              <option value="EC2">EC2 Instances</option>
+              <option value="S3">S3 Buckets</option>
+              <option value="RDS">RDS Databases</option>
+            </select>
+
+            <select class="custom-select" id="select-feed-risk-filter">
+              <option value="">All Risk Tiers</option>
+              <option value="HIGH">High Risk</option>
+              <option value="MEDIUM">Medium Risk</option>
+              <option value="LOW">Low Risk</option>
+              <option value="SAFE">Safe / Info</option>
+            </select>
+
+            <select class="custom-select" id="select-feed-type-filter">
+              <option value="">All Event Types</option>
+              <option value="incident_created">Incident Created</option>
+              <option value="runbook_generated">Runbook Generated</option>
+              <option value="github_pushed">GitHub Pushed</option>
+              <option value="slack_sent">Slack Alert Sent</option>
+              <option value="approval_updated">SRE Decision Made</option>
+              <option value="scan_completed">Sweep Completed</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Live Feed Items Container -->
+        <div class="live-feed-stream" id="live-feed-container">
+          <!-- Dynamically populated via SSE -->
+          <div class="feed-empty-state" id="feed-loading-state">
+            <div class="pulsing-dot" style="margin: 0 auto 0.75rem;"></div>
+            <span>Connecting to real-time telemetry stream...</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         TAB 2: Incidents (Task 3 & Addendum A2, A4)
+         ====================================================================== -->
+    <section class="tab-content" id="tab-incidents" role="tabpanel" aria-labelledby="tab-btn-incidents">
+      <div class="card-panel">
+        <div class="card-header-row">
+          <div class="card-title-group">
+            <h2><i data-lucide="shield-alert" style="width: 20px; height: 20px; color: var(--risk-high);"></i> Historical &amp; Active Security Incidents</h2>
+            <div class="card-subtitle">Every detected rogue asset, policy breach, and SRE resolution &bull; Click any row to expand the LLM Incident Runbook</div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="table-controls-bar">
+          <div class="search-input-wrap">
+            <i data-lucide="search" class="search-icon" style="width: 16px; height: 16px;"></i>
+            <input type="text" id="input-incident-search" placeholder="Search incidents by ID, resource ID, or name...">
+          </div>
+
+          <div class="filter-group">
+            <select class="custom-select" id="select-incident-status-filter">
+              <option value="">All Statuses</option>
+              <option value="Open">Open</option>
+              <option value="Pending Approval">Pending Approval</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Snoozed">Snoozed</option>
+              <option value="Resolved">Resolved</option>
+            </select>
+
+            <select class="custom-select" id="select-incident-tier-filter">
+              <option value="">All Risk Tiers</option>
+              <option value="HIGH">High Risk (&ge; 67)</option>
+              <option value="MEDIUM">Medium Risk (34 - 66)</option>
+              <option value="LOW">Low Risk (&lt; 34)</option>
+            </select>
+
+            <select class="custom-select" id="select-incident-service-filter">
+              <option value="">All Services</option>
+              <option value="EC2">EC2</option>
+              <option value="S3">S3</option>
+              <option value="RDS">RDS</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Incidents Table -->
+        <div class="table-responsive">
+          <table class="data-table incidents-table">
+            <thead>
+              <tr>
+                <th style="width: 30px;"></th>
+                <th>Incident ID</th>
+                <th>Resource ID</th>
+                <th>Service</th>
+                <th>Region</th>
+                <th>Risk Score</th>
+                <th>Status</th>
+                <th>Detected At</th>
+                <th>Pipeline Status</th>
+              </tr>
+            </thead>
+            <tbody id="incidents-table-body">
+              <!-- Dynamically populated via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         TAB 3: SRE Approvals & Audit Trail (Task 5 & Addendum A3)
+         ====================================================================== -->
+    <section class="tab-content" id="tab-approvals" role="tabpanel" aria-labelledby="tab-btn-approvals">
+      <!-- Approvals Governance Queue -->
+      <div class="card-panel">
+        <div class="card-header-row">
+          <div class="card-title-group">
+            <h2><i data-lucide="check-square" style="width: 20px; height: 20px; color: var(--cyan-primary);"></i> SRE Approvals &amp; Human-in-the-Loop Governance</h2>
+            <div class="card-subtitle">Workflow state management, scheduled reminders, threaded comments &bull; Final approval/rejection executed exclusively via Slack</div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Resource Identifier</th>
+                <th>Service / Region</th>
+                <th>Risk Score</th>
+                <th>Workflow Status</th>
+                <th>Scheduled Reminders</th>
+                <th>Discussion</th>
+                <th>Timestamps</th>
+              </tr>
+            </thead>
+            <tbody id="approvals-table-body">
+              <!-- Dynamically populated via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Extended Historical Audit Trail -->
+      <div class="card-panel" style="margin-top: 1.5rem;">
+        <div class="card-header-row">
+          <div class="card-title-group">
+            <h2><i data-lucide="file-check" style="width: 20px; height: 20px; color: var(--risk-low);"></i> Immutable Governance Audit Trail</h2>
+            <div class="card-subtitle">Chronological log of all SRE decisions, status transitions, reminders set, and audit comments</div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Target Resource</th>
+                <th>Event / Status</th>
+                <th>Actor / SRE</th>
+                <th>Action Taken</th>
+                <th>Reason / Justification</th>
+              </tr>
+            </thead>
+            <tbody id="audit-table-body">
+              <!-- Dynamically populated via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         TAB 4: Log Analyzer (Task 4 - Strictly Zero-Persistence)
+         ====================================================================== -->
+    <section class="tab-content" id="tab-loganalyzer" role="tabpanel" aria-labelledby="tab-btn-loganalyzer">
+      <div class="card-panel">
+        <!-- Privacy Notice Banner -->
+        <div class="privacy-banner">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <i data-lucide="lock" style="width: 20px; height: 20px; color: var(--cyan-primary);"></i>
+            <div>
+              <strong>Privacy Assurance: Zero-Persistence In-Memory Processing</strong>
+              <div style="font-size: 0.8rem; color: var(--text-dim);">
+                Analysis is temporary and processed in memory only. Uploaded files, parsed telemetry, and generated reports are never saved to disk, database, Slack, GitHub, or any external storage. Secrets and credentials are automatically redacted before LLM synthesis.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Upload Drag-and-Drop Area -->
+        <div class="upload-dropzone" id="log-upload-dropzone">
+          <i data-lucide="upload-cloud" style="width: 44px; height: 44px; color: var(--cyan-primary); margin-bottom: 0.75rem;"></i>
+          <h3 style="font-size: 1.15rem; margin-bottom: 0.35rem;">Drag and drop log file here, or click to browse</h3>
+          <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 1rem;">
+            Accepts <code>.txt</code> and <code>.log</code> files up to 5 MB (CloudTrail, Syslog, Apache, Nginx, or VPC Flow Logs)
+          </p>
+          <input type="file" id="log-file-input" accept=".txt,.log" style="display: none;">
+          <button class="btn btn-primary" id="btn-browse-log-file" type="button">
+            <i data-lucide="file-plus" style="width: 16px; height: 16px;"></i>
+            Select Log File
+          </button>
+        </div>
+
+        <!-- Log Analysis Results Panel (Hidden Initially) -->
+        <div id="log-results-container" style="display: none; margin-top: 1.5rem;">
+          <!-- Action Toolbar -->
+          <div class="log-results-toolbar">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span class="badge-tag" style="background: rgba(0, 240, 255, 0.15); color: var(--cyan-primary);" id="log-file-name-badge">filename.log</span>
+              <span style="font-size: 0.8rem; color: var(--text-dim);" id="log-file-meta-text">0 lines parsed</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn btn-secondary" id="btn-copy-log-report">
+                <i data-lucide="copy" style="width: 15px; height: 15px;"></i>
+                <span>Copy Report</span>
+              </button>
+              <button class="btn btn-secondary" id="btn-download-log-report">
+                <i data-lucide="download" style="width: 15px; height: 15px;"></i>
+                <span>Download Report as .md</span>
+              </button>
+              <button class="btn btn-warning" id="btn-clear-log-analysis">
+                <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
+                <span>Clear</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Log Visualizations Grid -->
+          <div class="feed-charts-grid" style="margin-top: 1rem;">
+            <!-- Severity Donut -->
+            <div class="card-panel" style="margin-bottom: 0;">
+              <div class="card-header-row">
+                <div class="card-title-group">
+                  <h3 style="font-size: 1rem;"><i data-lucide="pie-chart" style="width: 16px; height: 16px; color: var(--risk-high);"></i> Severity Breakdown</h3>
+                  <div class="card-subtitle">CRITICAL / ERROR / WARN / INFO</div>
+                </div>
+              </div>
+              <div style="position: relative; height: 200px; width: 100%;">
+                <canvas id="chart-log-severity"></canvas>
+              </div>
+            </div>
+
+            <!-- Top Error Signatures Bar -->
+            <div class="card-panel" style="margin-bottom: 0;">
+              <div class="card-header-row">
+                <div class="card-title-group">
+                  <h3 style="font-size: 1rem;"><i data-lucide="alert-octagon" style="width: 16px; height: 16px; color: var(--risk-med);"></i> Frequent Error Signatures</h3>
+                  <div class="card-subtitle">Clustered failure patterns</div>
+                </div>
+              </div>
+              <div style="position: relative; height: 200px; width: 100%;">
+                <canvas id="chart-log-errors"></canvas>
+              </div>
+            </div>
+
+            <!-- Top Suspicious IPs / Cloud Resources -->
+            <div class="card-panel" style="margin-bottom: 0;">
+              <div class="card-header-row">
+                <div class="card-title-group">
+                  <h3 style="font-size: 1rem;"><i data-lucide="network" style="width: 16px; height: 16px; color: var(--cyan-primary);"></i> Top Source IPs &amp; Resources</h3>
+                  <div class="card-subtitle">Frequent network endpoints</div>
+                </div>
+              </div>
+              <div style="position: relative; height: 200px; width: 100%;">
+                <canvas id="chart-log-sources"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Generated Incident Report Markdown Card -->
+          <div class="card-panel" style="margin-top: 1.5rem;">
+            <div class="card-header-row">
+              <div class="card-title-group">
+                <h2><i data-lucide="sparkles" style="width: 20px; height: 20px; color: var(--purple-accent);"></i> Synthesized Incident Report</h2>
+                <div class="card-subtitle">AI-generated root-cause diagnosis, timeline, and actionable containment guidance</div>
+              </div>
+            </div>
+            <div class="markdown-preview-box" id="log-report-preview">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Log Excerpt Filterable Table -->
+          <div class="card-panel" style="margin-top: 1.5rem;">
+            <div class="card-header-row">
+              <div class="card-title-group">
+                <h2><i data-lucide="list" style="width: 20px; height: 20px; color: var(--cyan-primary);"></i> Interactive Log Stream Excerpt</h2>
+                <div class="card-subtitle">Click items to filter &bull; Secrets and credentials automatically redacted</div>
+              </div>
+            </div>
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Line</th>
+                    <th>Timestamp</th>
+                    <th>Severity</th>
+                    <th>Log Message Payload</th>
+                    <th>Source IP</th>
+                    <th>Target Resource</th>
+                  </tr>
+                </thead>
+                <tbody id="log-excerpts-table-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================
+       MODAL: Schedule SRE Reminder (Task 5)
+       ======================================================================== -->
+  <div class="modal-overlay" id="modal-reminder">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 style="font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i data-lucide="bell" style="width: 18px; height: 18px; color: var(--cyan-primary);"></i>
+          Schedule SRE Reminder
+        </h3>
+        <button class="btn btn-secondary btn-icon-only btn-close-modal" style="border: none; background: transparent;">
+          <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="reminder-approval-id">
+        <div style="margin-bottom: 1rem;">
+          <span style="font-size: 0.8rem; color: var(--text-dim); display: block;">Target Resource</span>
+          <span class="resource-id-code" id="reminder-target-resource">i-unknown</span>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label">Reminder Preset</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary btn-preset-reminder" data-hours="1">In 1 Hour</button>
+            <button class="btn btn-secondary btn-preset-reminder" data-hours="4">In 4 Hours</button>
+            <button class="btn btn-secondary btn-preset-reminder" data-hours="24">In 24 Hours</button>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="input-custom-reminder-time">Or Custom Date &amp; Time (Local)</label>
+          <input type="datetime-local" id="input-custom-reminder-time" class="custom-datetime-input" style="width: 100%; padding: 0.65rem 1rem; background: var(--bg-glass-input); border: 1px solid var(--border-subtle); border-radius: 8px; color: #fff;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="input-reminder-note">Reminder Note</label>
+          <input type="text" id="input-reminder-note" placeholder="Check if owner shut down the idle worker..." style="width: 100%; padding: 0.65rem 1rem; background: var(--bg-glass-input); border: 1px solid var(--border-subtle); border-radius: 8px; color: #fff;">
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+          <input type="checkbox" id="check-reminder-slack" style="accent-color: var(--cyan-primary);">
+          <label for="check-reminder-slack" style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer;">
+            Post reminder to Slack alerts channel when due (optional, off by default)
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-close-modal">Cancel</button>
+        <button class="btn btn-primary" id="btn-submit-reminder">Set Reminder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL: Discussion Comments Thread (Task 5)
+       ======================================================================== -->
+  <div class="modal-overlay" id="modal-comments">
+    <div class="modal-dialog" style="max-width: 620px;">
+      <div class="modal-header">
+        <h3 style="font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i data-lucide="message-square" style="width: 18px; height: 18px; color: var(--purple-accent);"></i>
+          SRE Investigation Notes &amp; Comments
+        </h3>
+        <button class="btn btn-secondary btn-icon-only btn-close-modal" style="border: none; background: transparent;">
+          <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="comments-approval-id">
+        <div style="margin-bottom: 1rem;">
+          <span style="font-size: 0.8rem; color: var(--text-dim); display: block;">Target Resource</span>
+          <span class="resource-id-code" id="comments-target-resource">i-unknown</span>
+        </div>
+
+        <!-- Comments List -->
+        <div class="comments-thread-container" id="comments-thread-list">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Add Comment Input Box -->
+        <div class="add-comment-box" style="margin-top: 1rem; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
+          <div class="form-group" style="margin-bottom: 0.5rem;">
+            <label class="form-label" for="input-comment-author">Author Name</label>
+            <input type="text" id="input-comment-author" value="sre.operator" style="width: 100%; padding: 0.5rem 0.85rem; background: var(--bg-glass-input); border: 1px solid var(--border-subtle); border-radius: 8px; color: #fff;">
+          </div>
+          <div class="form-group" style="margin-bottom: 0.5rem;">
+            <label class="form-label" for="input-comment-text">Add Investigation Note</label>
+            <textarea id="input-comment-text" rows="3" placeholder="Enter findings, owner communication, or isolation notes..." style="width: 100%; padding: 0.65rem 0.85rem; background: var(--bg-glass-input); border: 1px solid var(--border-subtle); border-radius: 8px; color: #fff; font-family: var(--font-sans); font-size: 0.85rem; resize: none;"></textarea>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-dim); cursor: pointer;">
+              <input type="checkbox" id="check-comment-slack" style="accent-color: var(--purple-accent);">
+              <span>Mirror as thread reply in Slack (off by default)</span>
+            </label>
+            <button class="btn btn-primary" id="btn-submit-comment">Post Comment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Hub -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- App Logic -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

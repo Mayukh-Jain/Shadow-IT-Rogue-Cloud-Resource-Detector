@@ -1,79 +1,80 @@
-# Capstone Project: Status & Completion Plan
+# Capstone Project: Status & Architecture Document (Shadow.Guard v3.0)
 
-This document serves as the master blueprint for the Shadow IT Risk Scoring pipeline. It details the current project structure, all the enterprise-grade engineering accomplished so far, and the exact step-by-step instructions to build the final component: **The Slack Bot (Person 4)**.
-
----
-
-## ✅ Phase 1: Completed Work
-
-We have successfully built, secured, and integrated the first 4 components of the pipeline.
-
-### 1. The Shared Database (`shared/`)
-- **Status:** COMPLETED 🟢
-- **Details:** Built `local.db` using SQLite. Engineered a strict `schema.sql` containing `resources`, `risk_scores`, and `approvals` tables. 
-- **Hardening:** Implemented `PRAGMA foreign_keys = ON`, `UNIQUE` resource ID constraints, and bulletproof timestamp parsing.
-
-### 2. Cloud Detection Engine (`detection/`)
-- **Status:** COMPLETED 🟢
-- **Details:** `scanner.py` successfully authenticates with AWS using `boto3` to find rogue EC2, S3, and RDS resources based on `policy.yaml`.
-- **Hardening:** Implemented mathematical **True Idle Detection** using actual CloudWatch metrics (`CPUUtilization` and `DatabaseConnections`) rather than relying on naive AWS status states. Added dynamic region support and resilient `ClientError` bypassing.
-
-### 3. ML Risk Scoring Engine (`ml-scoring/`)
-- **Status:** COMPLETED 🟢
-- **Details:** `generate_synthetic_data.py` created 1,500 training rows. `train_model.py` built the Random Forest Regressor (`model.pkl`). `score_resources.py` scores the live database resources and assigns HIGH/MEDIUM/LOW buckets.
-- **Hardening:** Completely solved ML Target Leakage by perfectly balancing the formula weights to `100`. Prevented Database pollution by upgrading the scoring script to use `INSERT OR REPLACE` logic.
-
-### 4. LLM Explainability (`llm-explainability/`)
-- **Status:** COMPLETED 🟢
-- **Details:** `explainer.py` queries unexplained risks and uses LangChain to connect to OpenRouter (`gpt-4o-mini`). It generates concise 2-sentence remediation plans and updates the database.
-- **Hardening:** Patched LangChain memory leaks by pulling the chain constructor out of loops. Added strict financial safeguards (`max_tokens=100`) to prevent API bill runaways.
-
-### 5. Master Orchestrator
-- **Status:** COMPLETED 🟢
-- **Details:** Wrote `run_pipeline.py` in the root folder, allowing the entire pipeline to be executed sequentially in either `--mock` or live AWS modes.
+This document serves as the master architectural specification for **Shadow.Guard – Cloud Risk Scoring & Rogue Cloud Resource Detector** (Hugging Face Space / Docker deployment).
 
 ---
 
-## 🚧 Phase 2: Remaining Work (The Slack Bot)
+## 🏗️ Architecture & Component Overview
 
-**Objective (Person 4):** Build a Slack Bot that alerts the SRE team when a `HIGH` risk resource is detected. The bot must present interactive buttons (e.g., "Accept Risk" or "Remediate") and save the human's decision back into the `approvals` database table.
+```mermaid
+graph TD
+    A[AWS Multi-Region Cloud] -->|ReadOnly Boto3 / ThreadPool| B(Background Telemetry Scanner)
+    B -->|Upsert Resources & Snapshots| C[(Shared SQLite DB)]
+    C -->|Flagged Assets & Incidents| D(ML Risk Scoring Engine)
+    D -->|Continuous Scores 0-100| C
+    C -->|Automated Fan-Out| E(Incident Fan-Out Pipeline)
+    E -->|GenAI Runbook| F[incident_runbooks table]
+    E -->|Contents API| G[GitHub Runbook Repository]
+    E -->|Block Kit Action Request| H[Slack SRE Bot]
+    E -->|Real-Time SSE Stream| I[Live Dashboard UI]
+    H -->|Approve/Reject/Snooze| J[POST /slack/interactions]
+    J -->|HMAC-SHA256 Verified Update| C
+```
 
-### Step-by-Step Implementation Plan
+---
 
-#### Step 1: Slack API Setup (Manual)
-1. Go to [api.slack.com/apps](https://api.slack.com/apps) and create a new App.
-2. Under **Socket Mode**, toggle it ON (this allows the bot to run locally without a public web server).
-3. Under **OAuth & Permissions**, add these Scopes: `chat:write` (to send messages).
-4. Under **Interactivity & Shortcuts**, toggle Interactivity ON.
-5. **Tokens Needed:** You will need to copy your `xoxb-...` (Bot Token) and `xapp-...` (App-Level Token) into a new `.env` file.
+## ✅ Completed Milestones & Current State
 
-#### Step 2: Initialize the Slack Bot Module
-1. Create a new folder: `d:\Projects\capstone\slack-bot`
-2. Create `slack-bot/requirements.txt`:
-   ```text
-   slack_bolt
-   python-dotenv
-   ```
-3. Create `slack-bot/.env`:
-   ```env
-   SLACK_BOT_TOKEN=xoxb-your-bot-token
-   SLACK_APP_TOKEN=xapp-your-app-token
-   SLACK_CHANNEL_ID=C1234567890
-   ```
+### 1. Docker & Hugging Face Runtime (Task 1)
+- **Status:** COMPLETED 🟢
+- **Details:** Gradio UI and ZeroGPU completely removed. Container runs `uvicorn frontend.server:app --host 0.0.0.0 --port 7860`.
+- **Auto-Seeding:** Database auto-initializes and seeds with diverse cloud resources on startup (`shared/db.py`) ensuring the dashboard is never blank.
 
-#### Step 3: Write the Bot Code (`slack-bot/bot.py`)
-The code must accomplish three distinct things:
-1. **The Poller:** A function that periodically checks the `risk_scores` table for any `HIGH` risk resources that do **not** yet have a matching row in the `approvals` table.
-2. **The Messenger:** Use Slack Block Kit to send a beautifully formatted message to the channel containing:
-   - Resource Name & ID
-   - The ML Score & The LLM Explanation
-   - Two interactive buttons: `[Approve (False Positive)]` and `[Terminate Resource]`
-3. **The Listener (`@app.action`)**: A webhook listener using `slack_bolt.App`. When a user clicks a button, the bot must:
-   - Acknowledge the click.
-   - Update the Slack message to say "Decision made by @username".
-   - `INSERT` a new row into the shared `approvals` table (saving the `resource_id`, the `sre_name`, the `action_taken`, and the timestamp).
+### 2. Live Feed & Account-Wide Telemetry (Task 2 & Addendum A1)
+- **Status:** COMPLETED 🟢
+- **Details:**
+  - Real-time Server-Sent Events stream: `GET /api/live-feed/stream` (with polling fallback `GET /api/live-feed`).
+  - Account-wide metrics: Total assets, flagged, high-risk, monthly waste, pending reviews, multi-region scope selector.
+  - Streaming line chart (events per minute, rolling 15m), Risk-tier donut (click-to-filter), Service breakdown bar chart (click-to-filter).
+  - Chronological live feed stream with pause/resume, search, and click-to-view in Incidents.
 
-#### Step 4: Final Integration
-1. Test the Slack Bot locally using the Mock data generated in Phase 1.
-2. Once the bot successfully updates the `approvals` table upon button click, update the master `run_pipeline.py` script to include `bot.py` (or keep the bot running continuously in the background).
-3. The Capstone Project is officially **Finished**!
+### 3. Incidents & GenAI Incident Runbooks (Task 3 & Addendum A2, A4)
+- **Status:** COMPLETED 🟢
+- **Details:**
+  - Full matrix of past and open incidents with status badges (`Open`, `Pending Approval`, `Approved`, `Rejected`, `Snoozed`, `Resolved`).
+  - Expandable accordion per row displaying LLM-generated incident runbooks (summary, service/configuration root cause, impact, containment commands, verification steps, future guardrails, timeline).
+  - Deterministic template fallback (`template-generated`) when LLM key is absent.
+  - Pipeline status strip (`Detected -> Runbook -> GitHub -> Slack`) and GitHub runbook links.
+
+### 4. Zero-Persistence In-Memory Log Analyzer (Task 4)
+- **Status:** COMPLETED 🟢
+- **Details:**
+  - File picker & drag-and-drop supporting `.txt` and `.log` up to 5 MB with client-side validation.
+  - `POST /api/log-analyzer`: in-memory parsing of timestamps, severity, error signatures, IPs, resource IDs, HTTP codes, AWS events.
+  - Generates comprehensive markdown incident report.
+  - Interactive charts (severity distribution, top error signatures, top source IPs/resources).
+  - **Zero-Persistence Guarantee:** No file or data persistence to disk, database, Slack, GitHub, or any external service. Secrets redacted before LLM synthesis.
+
+### 5. SRE Approvals & Governance Workflow (Task 5 & Addendum A3)
+- **Status:** COMPLETED 🟢
+- **Details:**
+  - Web approve/reject buttons removed; approval/rejection actions are restricted to Slack.
+  - Per-item workflow status dropdown (`Pending`, `In Review`, `Approved (via Slack)`, `Rejected (via Slack)`, `Snoozed`, `Escalated`).
+  - Reminder scheduling (1h, 4h, 24h, custom datetime) with active badge and in-app toast notification.
+  - Threaded investigation comments per approval request.
+  - Human-readable timestamps (relative time with absolute local/UTC hover tooltips) and extended historical audit trail.
+
+### 6. Elimination of Deprecated Elements (Task 6)
+- **Status:** COMPLETED 🟢
+- **Details:**
+  - "Add Asset", "Simulate Alert", "Run Pipeline", "Pipeline Runner & Terminal", and "ML Scoring Sandbox" completely removed.
+  - Deprecated execution endpoints (`/api/pipeline/run`, `/api/pipeline/simulate`) return 404.
+  - `run_pipeline.py` preserved for CLI operations only.
+
+### 7. Automated Live AWS Fan-Out & Slack Two-Way Sync (Addendum A0–A7)
+- **Status:** COMPLETED 🟢
+- **Details:**
+  - Background worker periodically scans enabled regions using read-only boto3 calls.
+  - Single idempotent function `handle_new_incident` manages deduplication, runbook generation, GitHub push, and Slack Block Kit alerts.
+  - Public `/slack/interactions` endpoint with HMAC-SHA256 signature verification updates database, incident status, original Slack message, and live dashboard via SSE.
+  - Comprehensive test suite in `tests/test_enhanced_features.py` (43 total tests passing).

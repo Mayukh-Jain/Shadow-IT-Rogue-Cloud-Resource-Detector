@@ -11,4 +11,7 @@ env/
 .venv/
 
 # DB
-local.db
+# local.db
+
+# .pytest_cache/
+# *.pkl

@@ -2,7 +2,7 @@
 SHADOW IT RISK SCORING MODEL - EVALUATION REPORT
 ============================================================
 Model: RandomForestRegressor(n_estimators=200, max_depth=8, random_state=42)
-Dataset: D:\Projects\capstone\ml-scoring\data\synthetic_dataset.csv
+Dataset: C:\Users\Mayukh Jain\VS\capstone\ml-scoring\data\synthetic_dataset.csv
 Total Samples: 1,501
 Training Samples: 1,200
 Test Samples: 301
